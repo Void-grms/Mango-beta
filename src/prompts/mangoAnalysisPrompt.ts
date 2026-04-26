@@ -22,7 +22,10 @@ ESTADOS GENERALES (usa exactamente estos valores):
 INSTRUCCIONES IMPORTANTES:
 - Realizar el análisis visual de forma precisa.`;
 
-export const PREVALIDATION_PROMPT = `¿Esta imagen contiene un mango (fruta)? Responde solo con true o false`;
+export const PREVALIDATION_PROMPT = `Does this image show a mango fruit (Mangifera indica)?
+Answer ONLY with the single word true or false.
+Bananas, oranges, apples, papayas, people, animals, landscapes, and any non-mango object must return false.
+Only return true if you can clearly identify a mango fruit in the image.`;
 
 export function buildVisionUserPrompt(filename: string): string {
   return `Analiza la imagen del mango adjunta (archivo: "${filename}") respetando esta estructura JSON de salida:

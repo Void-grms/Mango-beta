@@ -154,8 +154,9 @@ async function callOpenRouter(model: string, messages: any[]): Promise<string> {
 
 /**
  * Realiza una pre-validación de bajísimo costo para confirmar si hay un mango.
- * Lanza MangoValidationError si deteca que NO es un mango.
- * Fail-open: si el servicio cae, permite continuar el flujo.
+ * Lanza MangoValidationError si detecta que NO es un mango.
+ * Fail-open: si el servicio cae (no-2xx, timeout), permite continuar el flujo.
+ * Usa fetchOpenRouter directamente — SIN retries/backoff — para fallar rápido.
  */
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   const model = 'meta-llama/llama-3.2-11b-vision-instruct:free';
@@ -175,14 +176,47 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
     },
   ];
 
+  let rawOutput: string;
   try {
-    const rawOutput = await callOpenRouter(model, messages);
-    const raw = rawOutput.trim().toLowerCase();
-    const isValid = raw.startsWith('true') || raw.includes('"true"');
-    if (!isValid) throw new MangoValidationError();
-  } catch (err) {
-    if (err instanceof MangoValidationError) throw err; // Relanzar
-    console.warn('Pre-validation unavailable, skipping guard', err);
+    // Usamos fetchOpenRouter (sin reintentos) con AbortController de 10s
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+    let response: Response;
+    try {
+      response = await fetch(OPENROUTER_URL, {
+        method:  'POST',
+        signal:  controller.signal,
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type':  'application/json',
+          'HTTP-Referer':  'https://araexport.pe',
+          'X-Title':       'ARAExport Mango Disease Analyzer Beta',
+        },
+        body: JSON.stringify({ model, max_tokens: 10, messages }),
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      // El modelo barato no está disponible → fail-open
+      console.warn(`[PreValidation] Modelo no disponible (HTTP ${response.status}), omitiendo guardia.`);
+      return;
+    }
+
+    const data = await response.json();
+    rawOutput = data?.choices?.[0]?.message?.content ?? '';
+  } catch (fetchErr) {
+    // Timeout, red caída → fail-open
+    console.warn('[PreValidation] Error de red/timeout, omitiendo guardia.', fetchErr);
+    return;
+  }
+
+  const raw = rawOutput.trim().toLowerCase();
+  const isValid = raw.startsWith('true') || raw.includes('"true"');
+  if (!isValid) {
+    throw new MangoValidationError();
   }
 }
 
