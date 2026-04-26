@@ -198,7 +198,7 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
           'HTTP-Referer':  'https://araexport.pe',
           'X-Title':       'ARAExport Mango Disease Analyzer Beta',
         },
-        body: JSON.stringify({ model, max_tokens: 10, messages }),
+        body: JSON.stringify({ model, max_tokens: 100, messages }),
       });
     } finally {
       clearTimeout(timeoutId);
@@ -219,8 +219,14 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
   }
 
   const raw = rawOutput.trim().toLowerCase();
-  const isValid = raw.startsWith('true') || raw.includes('"true"');
-  if (!isValid) {
+  console.log('[PreValidation] Respuesta cruda:', rawOutput);
+  
+  // Lógica defensiva: Si el modelo da un preámbulo, buscamos intenciones claras
+  const saysFalse = raw.includes('false') || raw.startsWith('no');
+  const saysTrue  = raw.includes('true')  || raw.startsWith('yes');
+  
+  // Rechazar SÓLO si hay una negativa clara y ninguna afirmación
+  if (saysFalse && !saysTrue) {
     throw new MangoValidationError();
   }
 }
