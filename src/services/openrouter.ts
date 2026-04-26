@@ -159,74 +159,77 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
  * Usa fetchOpenRouter directamente — SIN retries/backoff — para fallar rápido.
  */
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
-  // Modelo de visión gratuito activo en OpenRouter (verificado 2025-04, ex llama-3.2-11b ya no existe)
   const PREVALIDATION_MODELS = [
     'nvidia/nemotron-nano-12b-v2-vl:free', // visión + free + rápido
-    'google/gemma-4-31b-it:free',          // Fallback
+    'google/gemma-3-4b-it:free',           // Fallback
   ];
-  const model = PREVALIDATION_MODELS[0];
+
   const messages = [
     {
       role: 'user',
       content: [
-        {
-          type: 'image_url',
-          image_url: { url: `data:${mediaType};base64,${imageBase64}` },
-        },
-        {
-          type: 'text',
-          text: PREVALIDATION_PROMPT,
-        },
+        { type: 'image_url', image_url: { url: `data:${mediaType};base64,${imageBase64}` } },
+        { type: 'text', text: PREVALIDATION_PROMPT },
       ],
     },
   ];
 
-  let rawOutput: string;
-  try {
-    // Usamos fetchOpenRouter (sin reintentos) con AbortController de 20s
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20_000);
+  let rawOutput = '';
+  let validationSuccess = false;
 
-    let response: Response;
+  for (const model of PREVALIDATION_MODELS) {
     try {
-      response = await fetch(OPENROUTER_URL, {
-        method:  'POST',
-        signal:  controller.signal,
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type':  'application/json',
-          'HTTP-Referer':  'https://araexport.pe',
-          'X-Title':       'ARAExport Mango Disease Analyzer Beta',
-        },
-        body: JSON.stringify({ model, max_tokens: 100, messages }),
-      });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20_000);
+      let response: Response;
+      
+      try {
+        response = await fetch(OPENROUTER_URL, {
+          method:  'POST',
+          signal:  controller.signal,
+          headers: {
+            'Authorization': `Bearer ${API_KEY}`,
+            'Content-Type':  'application/json',
+            'HTTP-Referer':  'https://araexport.pe',
+            'X-Title':       'ARAExport Mango Disease Analyzer Beta',
+          },
+          body: JSON.stringify({ model, max_tokens: 100, messages }),
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
-    if (!response.ok) {
-      // El modelo barato no está disponible → fail-open
-      console.warn(`[PreValidation] Modelo no disponible (HTTP ${response.status}), omitiendo guardia.`);
-      return;
-    }
+      if (!response.ok) {
+        console.warn(`[PreValidation] Modelo ${model} no disponible (HTTP ${response.status})`);
+        continue; // Intentar con el siguiente modelo
+      }
 
-    const data = await response.json();
-    rawOutput = data?.choices?.[0]?.message?.content ?? '';
-  } catch (fetchErr) {
-    // Timeout, red caída → fail-open
-    console.warn('[PreValidation] Error de red/timeout, omitiendo guardia.', fetchErr);
-    return;
+      const data = await response.json();
+      rawOutput = data?.choices?.[0]?.message?.content ?? '';
+      console.log(`[PreValidation] Respuesta cruda de ${model}:`, rawOutput);
+      validationSuccess = true;
+      break; // Salimos del loop porque tuvimos éxito
+    } catch (err) {
+      console.warn(`[PreValidation] Error con el modelo ${model}:`, err);
+      continue; // Intentar con el siguiente modelo
+    }
+  }
+
+  // Si TODOS los modelos de pre-validación fallaron (red caída, créditos), hacemos fail-open
+  // (es preferible analizar algo raro que bloquear la app completa si el guardián está caído)
+  if (!validationSuccess) {
+    console.error('[PreValidation] Todos los modelos guardianes fallaron. Omitiendo pre-validación.');
+    return; 
   }
 
   const raw = rawOutput.trim().toLowerCase();
-  console.log('[PreValidation] Respuesta cruda:', rawOutput);
   
-  // Lógica defensiva: Si el modelo da un preámbulo, buscamos intenciones claras
-  const saysFalse = raw.includes('false') || raw.startsWith('no');
-  const saysTrue  = raw.includes('true')  || raw.startsWith('yes');
-  
-  // Rechazar SÓLO si hay una negativa clara y ninguna afirmación
-  if (saysFalse && !saysTrue) {
+  // Analizamos la respuesta
+  const saysTrue = raw.includes('true') || raw.includes('yes');
+  const saysFalse = raw.includes('false') || raw.includes('no');
+
+  // Rechazamos si explícitamente dice false, o si NO dice true (ej. responde "This is a basket of eggs")
+  if ((saysFalse && !saysTrue) || !saysTrue) {
     throw new MangoValidationError();
   }
 }
