@@ -159,7 +159,12 @@ async function callOpenRouter(model: string, messages: any[]): Promise<string> {
  * Usa fetchOpenRouter directamente — SIN retries/backoff — para fallar rápido.
  */
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
-  const model = 'meta-llama/llama-3.2-11b-vision-instruct:free';
+  // Modelo de visión gratuito activo en OpenRouter (verificado 2025-04, ex llama-3.2-11b ya no existe)
+  const PREVALIDATION_MODELS = [
+    'google/gemma-3-4b-it:free',   // Más liviano, preferido
+    'google/gemma-3-12b-it:free',  // Fallback si el anterior cae
+  ];
+  const model = PREVALIDATION_MODELS[0];
   const messages = [
     {
       role: 'user',
@@ -361,34 +366,34 @@ export async function analyzeMango(
 }
 
 /**
- * Parsea la respuesta cruda del Sistema a objeto.
- * Limpia posibles bloques de código markdown que el modelo a veces incluye.
+ * Parsea la respuesta cruda del modelo a objeto JS.
+ * Elimina agresivamente markdown fences (```json ... ```) que algunos modelos
+ * incluyen aunque se les pida JSON puro.
  */
 function parseAIResponse(raw: string): any {
-  let cleaned = raw
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i,     '')
-    .replace(/```\s*$/,      '')
+  // Eliminar fences en cualquier posición (inicio, fin o envolviendo el JSON)
+  const cleaned = raw
+    .replace(/^\s*```(?:json)?\s*/i, '') // fence de apertura al inicio
+    .replace(/\s*```\s*$/i, '')          // fence de cierre al final
     .trim();
 
   try {
     return JSON.parse(cleaned);
-  } catch (err) {
-    // Si falla el parseo directo, intentar extraer el bloque entre el primer '{' y el último '}'
+  } catch {
+    // Fallback: extraer el bloque entre primer '{' y último '}'
     const firstBrace = cleaned.indexOf('{');
-    const lastBrace = cleaned.lastIndexOf('}');
-    
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const lastBrace  = cleaned.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
       const jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
       try {
         return JSON.parse(jsonStr);
-      } catch (innerErr) {
-        console.error("Error al parsear el JSON extraído:", jsonStr);
+      } catch {
+        console.error('[parseAIResponse] JSON extraído inválido:', jsonStr);
       }
     }
-    
-    // Si todo falla, loguear la respuesta cruda para depuración
-    console.error("Fallo al parsear respuesta cruda del Sistema:", raw);
+
+    console.error('[parseAIResponse] Respuesta cruda no parseable:', raw);
     throw new Error('El Sistema devolvió un formato no válido. Por favor, intenta de nuevo.');
   }
 }
