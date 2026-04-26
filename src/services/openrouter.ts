@@ -161,8 +161,8 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   // Modelo de visión gratuito activo en OpenRouter (verificado 2025-04, ex llama-3.2-11b ya no existe)
   const PREVALIDATION_MODELS = [
-    'google/gemma-3-4b-it:free',   // Más liviano, preferido
-    'google/gemma-3-12b-it:free',  // Fallback si el anterior cae
+    'nvidia/nemotron-nano-12b-v2-vl:free', // visión + free + rápido
+    'google/gemma-4-31b-it:free',          // Fallback
   ];
   const model = PREVALIDATION_MODELS[0];
   const messages = [
@@ -183,9 +183,9 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
 
   let rawOutput: string;
   try {
-    // Usamos fetchOpenRouter (sin reintentos) con AbortController de 10s
+    // Usamos fetchOpenRouter (sin reintentos) con AbortController de 20s
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const timeoutId = setTimeout(() => controller.abort(), 20_000);
 
     let response: Response;
     try {
@@ -283,9 +283,10 @@ export async function analyzeMango(
 
   // ============== FASE 2: EXPERTO (FALLBACKS) ==============
   const defaultExpertModels = [
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'meta-llama/llama-3.1-405b-instruct:free',
-    'z-ai/glm-4.5-air:free'
+    'openai/gpt-oss-120b:free',               // 131K ctx, MoE, structured output
+    'nvidia/nemotron-3-super-120b-a12b:free', // 262K ctx, muy capaz
+    'z-ai/glm-4.5-air:free',                  // 131K ctx, buen fallback
+    'openrouter/free'                         // comodín final de la plataforma
   ];
   const expertModels = EXPERT_MODELS_ENV 
     ? EXPERT_MODELS_ENV.split(',').map(m => m.trim())
