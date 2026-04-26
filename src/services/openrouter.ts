@@ -62,15 +62,15 @@ const MAX_DELAY_MS  = 32_000; // tope de 32 s
 
 /**
  * Realiza la petición HTTP pura a OpenRouter, sin reintentos.
- * Lanza OpenRouterError en respuestas no-2xx.
+ * @param maxTokens - Límite de tokens de salida. Usar 800 para Fase 1 y 1200 para Fase 2.
  */
-async function fetchOpenRouter(model: string, messages: any[]): Promise<string> {
+async function fetchOpenRouter(model: string, messages: any[], maxTokens = 800): Promise<string> {
   let response: Response;
   const supportsJsonMode = ['llama-3', 'gpt-', 'claude-', 'gemini'].some(m => model.toLowerCase().includes(m));
   
   const bodyPayload: any = {
     model,
-    max_tokens: 800,
+    max_tokens: maxTokens,
     messages,
   };
   
@@ -123,12 +123,12 @@ async function fetchOpenRouter(model: string, messages: any[]): Promise<string> 
  *   intento 4 → espera ~16 s …
  * El jitter (±20 %) evita que múltiples pestañas reintenten al mismo tiempo.
  */
-async function callOpenRouter(model: string, messages: any[]): Promise<string> {
+async function callOpenRouter(model: string, messages: any[], maxTokens = 800): Promise<string> {
   let attempt = 0;
 
   while (true) {
     try {
-      return await fetchOpenRouter(model, messages);
+      return await fetchOpenRouter(model, messages, maxTokens);
     } catch (err) {
       const isRateLimit =
         err instanceof OpenRouterError && err.statusCode === 429;
@@ -274,7 +274,7 @@ export async function analyzeMango(
     },
   ];
 
-  const visionRawOutput = await callOpenRouter(visionModel, visionMessages);
+  const visionRawOutput = await callOpenRouter(visionModel, visionMessages, 800);
 
   // Delay entre la llamada de visión y la del experto para no saturar la API
   await sleep(INTER_CALL_DELAY_MS);
@@ -319,7 +319,7 @@ export async function analyzeMango(
     if (i > 0) await sleep(INTER_CALL_DELAY_MS);
 
     try {
-      const expertRawOutput = await callOpenRouter(expModel, expertMessages);
+      const expertRawOutput = await callOpenRouter(expModel, expertMessages, 1200);
       expertResult = parseAIResponse(expertRawOutput);
       successExpertModel = expModel;
       break; // Éxito, salir del loop
@@ -371,10 +371,11 @@ export async function analyzeMango(
  * incluyen aunque se les pida JSON puro.
  */
 function parseAIResponse(raw: string): any {
-  // Eliminar fences en cualquier posición (inicio, fin o envolviendo el JSON)
+  // Eliminar markdown fences en CUALQUIER posición del texto
+  // Cubre: texto previo al fence, fence al inicio, fence al final
   const cleaned = raw
-    .replace(/^\s*```(?:json)?\s*/i, '') // fence de apertura al inicio
-    .replace(/\s*```\s*$/i, '')          // fence de cierre al final
+    .replace(/```json\s*/gi, '') // Eliminar ```json (con o sin salto de línea)
+    .replace(/```\s*/gi,     '') // Eliminar ``` restantes
     .trim();
 
   try {
