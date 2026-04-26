@@ -1,5 +1,7 @@
 import type { MangoAnalysisReport } from '../types/analysis';
+import { MangoValidationError } from '../utils/errors';
 import {
+  PREVALIDATION_PROMPT,
   VISION_SYSTEM_PROMPT,
   buildVisionUserPrompt,
   EXPERT_SYSTEM_PROMPT,
@@ -64,6 +66,18 @@ const MAX_DELAY_MS  = 32_000; // tope de 32 s
  */
 async function fetchOpenRouter(model: string, messages: any[]): Promise<string> {
   let response: Response;
+  const supportsJsonMode = ['llama-3', 'gpt-', 'claude-', 'gemini'].some(m => model.toLowerCase().includes(m));
+  
+  const bodyPayload: any = {
+    model,
+    max_tokens: 800,
+    messages,
+  };
+  
+  if (supportsJsonMode) {
+    bodyPayload.response_format = { type: 'json_object' };
+  }
+
   try {
     response = await fetch(OPENROUTER_URL, {
       method:  'POST',
@@ -73,11 +87,7 @@ async function fetchOpenRouter(model: string, messages: any[]): Promise<string> 
         'HTTP-Referer':  'https://araexport.pe',
         'X-Title':       'ARAExport Mango Disease Analyzer Beta',
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2000,
-        messages,
-      }),
+      body: JSON.stringify(bodyPayload),
     });
   } catch {
     throw new Error('No se pudo conectar con OpenRouter. Verifica tu conexión a internet.');
@@ -143,6 +153,40 @@ async function callOpenRouter(model: string, messages: any[]): Promise<string> {
 }
 
 /**
+ * Realiza una pre-validación de bajísimo costo para confirmar si hay un mango.
+ * Lanza MangoValidationError si deteca que NO es un mango.
+ * Fail-open: si el servicio cae, permite continuar el flujo.
+ */
+async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
+  const model = 'meta-llama/llama-3.2-11b-vision-instruct:free';
+  const messages = [
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'image_url',
+          image_url: { url: `data:${mediaType};base64,${imageBase64}` },
+        },
+        {
+          type: 'text',
+          text: PREVALIDATION_PROMPT,
+        },
+      ],
+    },
+  ];
+
+  try {
+    const rawOutput = await callOpenRouter(model, messages);
+    const raw = rawOutput.trim().toLowerCase();
+    const isValid = raw.startsWith('true') || raw.includes('"true"');
+    if (!isValid) throw new MangoValidationError();
+  } catch (err) {
+    if (err instanceof MangoValidationError) throw err; // Relanzar
+    console.warn('Pre-validation unavailable, skipping guard', err);
+  }
+}
+
+/**
  * Envía la imagen a OpenRouter y devuelve el informe completo usando doble modelo.
  * @param imageBase64  - Imagen en base64 (sin prefijo data:...)
  * @param mediaType    - "image/jpeg" | "image/png" | "image/webp"
@@ -160,12 +204,21 @@ export async function analyzeMango(
     throw new Error('VITE_OPENROUTER_API_KEY no está configurada en el archivo .env.');
   }
 
+  // ============== FASE 0: PRE-VALIDACIÓN ==============
+  await cheapPreValidation(imageBase64, mediaType);
+
   // ============== FASE 1: VISIÓN ==============
   const visionModel = MODEL || 'nvidia/nemotron-nano-12b-v2-vl:free';
   const visionMessages = [
     {
-      role:    'system',
-      content: VISION_SYSTEM_PROMPT,
+      role: 'system',
+      content: [
+        {
+          type: 'text',
+          text: VISION_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
     },
     {
       role: 'user',
@@ -202,7 +255,13 @@ export async function analyzeMango(
   const expertMessages = [
     {
       role: 'system',
-      content: EXPERT_SYSTEM_PROMPT
+      content: [
+        {
+          type: 'text',
+          text: EXPERT_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
     },
     {
       role: 'user',
@@ -239,8 +298,23 @@ export async function analyzeMango(
 
   // ============== FASE 3: COMBINAR ==============
   const report: MangoAnalysisReport = {
-    ...visionResult,
-    ...expertResult,
+    diagnostico_principal: {
+      codigo: visionResult.diag?.codigo || '',
+      nombre: visionResult.diag?.nombre || '',
+      nombre_cientifico: visionResult.diag?.sci || null,
+      confianza: visionResult.diag?.conf || 0,
+      severidad: visionResult.diag?.severidad || 'sano',
+      porcentaje_area: visionResult.diag?.pct || 0,
+      descripcion_visual: visionResult.diag?.descripcion_visual || ''
+    },
+    diagnosticos_secundarios: visionResult.alt || [],
+    estado_general: visionResult.estado_general || 'optimo',
+    porcentaje_area_total_afectada: visionResult.porcentaje_area_total_afectada || 0,
+    descripcion_general: visionResult.descripcion_general || '',
+    advertencias: visionResult.advertencias || [],
+    apto_exportacion: expertResult.apto_exportacion ?? false,
+    observaciones_adicionales: expertResult.observaciones_adicionales || [],
+    recomendaciones: expertResult.recs || [],
     id_sesion:         generateUUID(),
     fecha_analisis:    new Date().toISOString(),
     nombre_archivo:    filename,

@@ -20,30 +20,32 @@ ESTADOS GENERALES (usa exactamente estos valores):
 - "critico"      → Daño severo o en zonas críticas, no apto
 
 INSTRUCCIONES IMPORTANTES:
-- Responde ÚNICAMENTE con el formato JSON requerido, sin texto antes ni después, sin bloques markdown.`;
+- Realizar el análisis visual de forma precisa.`;
+
+export const PREVALIDATION_PROMPT = `¿Esta imagen contiene un mango (fruta)? Responde solo con true o false`;
 
 export function buildVisionUserPrompt(filename: string): string {
-  return `Analiza la imagen del mango adjunta (archivo: "${filename}") y responde SOLO con este JSON exacto:
+  return `Analiza la imagen del mango adjunta (archivo: "${filename}") respetando esta estructura JSON de salida:
 
 {
-  "diagnostico_principal": {
+  "diag": {
     "codigo": "<sano|antracnosis|oidio|pudricion_pedunculo|otras_lesiones>",
     "nombre": "<nombre completo en español>",
-    "nombre_cientifico": "<nombre científico o null>",
-    "confianza": <decimal 0.0-1.0>,
+    "sci": "<nombre científico o null>",
+    "conf": <decimal 0.0-1.0>,
     "severidad": "<sano|leve|moderado|severo>",
-    "porcentaje_area": <entero 0-100>,
+    "pct": <entero 0-100>,
     "descripcion_visual": "<descripción de los signos visuales>"
   },
-  "diagnosticos_secundarios": [],
+  "alt": [],
   "estado_general": "<optimo|acceptable|comprometido|critico>",
   "porcentaje_area_total_afectada": <entero 0-100>,
   "descripcion_general": "<párrafo de 2-3 oraciones describiendo el estado visual>",
   "advertencias": []
 }
 
-Si hay enfermedades secundarias, agrégarlas en "diagnosticos_secundarios".
-Si hay problemas con la imagen (borrosa, etc), incluye una cadena en el arreglo "advertencias".`;
+Si hay enfermedades secundarias, agrégarlas en "alt".
+Si hay problemas con la imagen (borrosa, etc), incluye un mensaje en "advertencias".`;
 }
 
 export const EXPERT_SYSTEM_PROMPT = `Eres un ingeniero agrónomo consultor experto en postcosecha de exportación para ARAExport S.A.C.
@@ -51,10 +53,7 @@ Tu tarea es tomar un diagnóstico visual de un mango y generar el veredicto de e
 
 CRITERIOS DE APTITUD PARA EXPORTACIÓN:
 - APTO (true):  fruto sano o daño leve menor al 5% en zona no visible
-- NO APTO (false): cualquier lesión moderada o severa, pudrición en pedúnculo, oídio visible u hongos
-
-INSTRUCCIONES:
-- Responde ÚNICAMENTE con el formato JSON requerido, sin texto antes ni después, sin bloques markdown.`;
+- NO APTO (false): cualquier lesión moderada o severa, pudrición en pedúnculo, oídio visible u hongos`;
 
 export function buildExpertUserPrompt(visionJsonString: string): string {
   return `Con base en el siguiente diagnóstico visual de un mango, determina su aptitud para exportación y genera las recomendaciones y observaciones.
@@ -62,13 +61,13 @@ export function buildExpertUserPrompt(visionJsonString: string): string {
 DIAGNÓSTICO VISUAL RECIBIDO:
 ${visionJsonString}
 
-Genera SOLO este JSON exacto como respuesta:
+Genera esta estructura JSON como respuesta:
 {
   "apto_exportacion": <true|false>,
   "observaciones_adicionales": [
     "<observación técnica relevante sobre las consecuencias de este diagnóstico>"
   ],
-  "recomendaciones": [
+  "recs": [
     {
       "prioridad": "<alta|media|baja>",
       "accion": "<acción concreta y específica para tratar o prevenir>",

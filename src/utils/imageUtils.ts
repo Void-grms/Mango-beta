@@ -1,7 +1,7 @@
 import type { ImageInfo } from '../types/analysis';
 
 const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-const MAX_DIMENSION = 1536;
+const MAX_DIMENSION = 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /**
@@ -18,7 +18,8 @@ export function validateImageFile(file: File): string | null {
 }
 
 /**
- * Convierte un File a base64, redimensionando si supera MAX_DIMENSION.
+ * Convierte un File a base64, redimensionando si supera MAX_DIMENSION 
+ * y forzando la compresión a formato WebP para ahorro de payload y tokens.
  * Devuelve ImageInfo con todos los metadatos.
  */
 export function processImageFile(file: File): Promise<ImageInfo> {
@@ -35,29 +36,40 @@ export function processImageFile(file: File): Promise<ImageInfo> {
 
       img.onload = () => {
         let { width, height } = img;
-        let finalBase64: string;
 
         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
           // Redimensionar manteniendo proporción
           const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
-          const canvas = document.createElement('canvas');
-          canvas.width  = Math.round(width  * ratio);
-          canvas.height = Math.round(height * ratio);
-          const ctx = canvas.getContext('2d')!;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          finalBase64 = canvas.toDataURL(file.type, 0.92).split(',')[1];
-          width  = canvas.width;
-          height = canvas.height;
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        // Forzar siempre usar canvas para re-codificar a WebP (0.85)
+        const canvas = document.createElement('canvas');
+        canvas.width  = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrlStr = canvas.toDataURL('image/webp', 0.85);
+        let finalBase64: string;
+        let finalMediaType: string;
+
+        if (!dataUrlStr.startsWith('data:image/webp')) {
+          console.warn('WebP not supported by browser encoding, falling back to JPEG');
+          const fallbackDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          finalBase64 = fallbackDataUrl.split(',')[1];
+          finalMediaType = 'image/jpeg';
         } else {
-          finalBase64 = dataUrl.split(',')[1];
+          finalBase64 = dataUrlStr.split(',')[1];
+          finalMediaType = 'image/webp';
         }
 
         resolve({
           base64:           finalBase64,
-          mediaType:        file.type,
+          mediaType:        finalMediaType,
           width,
           height,
-          sizeBytes:        file.size,
+          sizeBytes:        Math.round(finalBase64.length * 0.75), // Estimación del tamaño del base64
           resolutionString: `${width}×${height} px`,
         });
       };

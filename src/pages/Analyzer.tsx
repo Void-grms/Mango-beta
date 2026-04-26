@@ -7,6 +7,7 @@ import { ReportDisplay } from '../components/ReportDisplay';
 import { analyzeMango, OpenRouterError } from '../services/openrouter';
 import { generatePDF } from '../services/reportGenerator';
 import { processImageFile } from '../utils/imageUtils';
+import { MangoValidationError } from '../utils/errors';
 
 const INITIAL_STATE: AppState = {
   screen:         'ANALYZER',
@@ -22,9 +23,11 @@ const INITIAL_STATE: AppState = {
 export function Analyzer() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [isNotMangoError, setIsNotMangoError] = useState(false);
 
   // ── Seleccionar imagen ──────────────────────────────────────
   const handleFileSelected = useCallback(async (file: File) => {
+    setIsNotMangoError(false);
     const previewUrl = URL.createObjectURL(file);
     setState((s) => ({
       ...s,
@@ -53,6 +56,7 @@ export function Analyzer() {
   // ── Limpiar selección ───────────────────────────────────────
   const handleClear = useCallback(() => {
     if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+    setIsNotMangoError(false);
     setState(INITIAL_STATE);
   }, [state.previewUrl]);
 
@@ -78,19 +82,24 @@ export function Analyzer() {
       }));
 
     } catch (err) {
-      const msg = err instanceof OpenRouterError
-        ? err.getUserMessage()
-        : err instanceof Error
-          ? err.message
-          : 'Error desconocido. Intenta de nuevo.';
-
-      setState((s) => ({ ...s, analysisStatus: 'error', errorMessage: msg }));
+      if (err instanceof MangoValidationError) {
+        setIsNotMangoError(true);
+        setState((s) => ({ ...s, analysisStatus: 'error', errorMessage: 'NOT_A_MANGO' }));
+      } else {
+        const msg = err instanceof OpenRouterError
+          ? err.getUserMessage()
+          : err instanceof Error
+            ? err.message
+            : 'Error desconocido. Intenta de nuevo.';
+        setState((s) => ({ ...s, analysisStatus: 'error', errorMessage: msg }));
+      }
     }
   }, [state.selectedFile, state.imageBase64, state.imageInfo]);
 
   // ── Nuevo análisis ────────────────────────────────────────────
   const handleNewAnalysis = useCallback(() => {
     if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+    setIsNotMangoError(false);
     setState(INITIAL_STATE);
   }, [state.previewUrl]);
 
@@ -188,10 +197,30 @@ export function Analyzer() {
           </div>
 
           {/* Mensaje de error */}
-          {state.errorMessage && (
-            <div className="mx-6 mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{state.errorMessage}</p>
+          {(state.errorMessage || isNotMangoError) && (
+            <div className={`mx-6 mb-4 p-3 rounded-lg border flex items-start gap-3 ${
+              isNotMangoError ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+            }`}>
+              <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${
+                isNotMangoError ? 'text-amber-500' : 'text-red-500'
+              }`} />
+              <div className="flex-1">
+                <p className={`text-sm ${
+                  isNotMangoError ? 'text-amber-800 font-medium' : 'text-red-700'
+                }`}>
+                  {isNotMangoError
+                    ? '🥭 La imagen procesada no parece ser un mango. Por favor sube una foto válida.'
+                    : state.errorMessage}
+                </p>
+                {isNotMangoError && (
+                  <button
+                    onClick={handleClear}
+                    className="mt-3 text-xs font-semibold text-amber-700 hover:text-amber-900 border border-amber-300 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded transition-colors"
+                  >
+                    Subir otra imagen
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
