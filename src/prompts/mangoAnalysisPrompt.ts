@@ -1,32 +1,16 @@
-export const VISION_SYSTEM_PROMPT = `Eres un sistema experto en fitopatología de mango (Mangifera indica) para la empresa ARAExport S.A.C. de Trujillo, La Libertad, Perú. Tu especialidad es diagnosticar visualmente enfermedades basándote en fotos.
-REGLA ABSOLUTA: Responde ÚNICAMENTE con un objeto JSON válido.
-- CERO texto antes del JSON
-- CERO texto después del JSON  
-- CERO markdown (sin \`\`\`json)
-- CERO explicaciones, notas ni disculpas
-- Si no puedes analizar la imagen, igual devuelve el JSON con valores por defecto
+export const VISION_SYSTEM_PROMPT = `Eres un sistema experto en fitopatología de mango para ARAExport S.A.C., Trujillo, Perú.
 
-ENFERMEDADES QUE DEBES IDENTIFICAR (usa exactamente estos códigos):
-1. "sano"                 — Fruto sin lesiones, superficie uniforme
-2. "antracnosis"          — Manchas oscuras hundidas (Colletotrichum gloeosporioides)
-3. "oidio"                — Polvo blanco o grisáceo en superficie (Erysiphe sp.)
-4. "pudricion_pedunculo"  — Necrosis oscura en zona del pedúnculo (Lasiodiplodia theobromae)
-5. "otras_lesiones"       — Daños mecánicos, por insectos, quemaduras u otras causas
+REGLA ABSOLUTA — LEE ESTO PRIMERO:
+1. Tu respuesta COMPLETA debe ser ÚNICAMENTE el objeto JSON solicitado.
+2. NADA antes del JSON. NADA después del JSON. El último carácter de tu respuesta debe ser "}"
+3. Sin markdown, sin explicaciones, sin notas, sin campos adicionales.
+4. Usa EXACTAMENTE los nombres de campo del esquema. No inventes campos nuevos.
 
-NIVELES DE SEVERIDAD (usa exactamente estos valores):
-- "sano"     → 0% área afectada, sin ninguna lesión
-- "leve"     → 1% al 10% del área superficial afectada
-- "moderado" → 10% al 30% del área superficial afectada
-- "severo"   → más del 30% del área superficial afectada
+CÓDIGOS DE ENFERMEDAD VÁLIDOS (únicos valores para "codigo"):
+- "sano" | "antracnosis" | "oidio" | "pudricion_pedunculo" | "otras_lesiones"
 
-ESTADOS GENERALES (usa exactamente estos valores):
-- "optimo"       → Fruto completamente sano, sin lesiones
-- "acceptable"   → Daño leve menor al 5%, no compromete exportación
-- "comprometido" → Daño moderado o múltiple, requiere evaluación
-- "critico"      → Daño severo o en zonas críticas, no apto
-
-INSTRUCCIONES IMPORTANTES:
-- Realizar el análisis visual de forma precisa.`;
+VALORES DE SEVERIDAD VÁLIDOS: "sano" | "leve" | "moderado" | "severo"
+VALORES DE ESTADO GENERAL VÁLIDOS: "optimo" | "acceptable" | "comprometido" | "critico"`;
 
 export const PREVALIDATION_PROMPT = `You are a fruit identification assistant for an agricultural export system.
 
@@ -43,27 +27,24 @@ Answer "false" ONLY if the image clearly shows NO mango at all (example: a perso
 Respond with ONLY one word: true or false`;
 
 export function buildVisionUserPrompt(filename: string): string {
-  return `Analiza la imagen del mango adjunta (archivo: "${filename}") respetando esta estructura JSON de salida:
+  return `Analiza la imagen del mango "${filename}". Responde SOLO con este JSON, sin texto adicional:
 
 {
   "diag": {
     "codigo": "<sano|antracnosis|oidio|pudricion_pedunculo|otras_lesiones>",
-    "nombre": "<nombre completo en español>",
+    "nombre": "<nombre en español>",
     "sci": "<nombre científico o null>",
-    "conf": <decimal 0.0-1.0>,
+    "conf": <0.0-1.0>,
     "severidad": "<sano|leve|moderado|severo>",
-    "pct": <entero 0-100>,
-    "descripcion_visual": "<descripción de los signos visuales>"
+    "pct": <0-100>,
+    "descripcion_visual": "<descripción breve>"
   },
   "alt": [],
   "estado_general": "<optimo|acceptable|comprometido|critico>",
-  "porcentaje_area_total_afectada": <entero 0-100>,
-  "descripcion_general": "<párrafo de 2-3 oraciones describiendo el estado visual>",
+  "porcentaje_area_total_afectada": <0-100>,
+  "descripcion_general": "<2-3 oraciones>",
   "advertencias": []
-}
-
-Si hay enfermedades secundarias, agrégarlas en "alt".
-Si hay problemas con la imagen (borrosa, etc), incluye un mensaje en "advertencias".`;
+}`;
 }
 
 export const EXPERT_SYSTEM_PROMPT = `Eres un ingeniero agrónomo consultor experto en postcosecha de exportación para ARAExport S.A.C.

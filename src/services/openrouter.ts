@@ -66,7 +66,7 @@ const MAX_DELAY_MS  = 32_000; // tope de 32 s
  */
 async function fetchOpenRouter(model: string, messages: any[], maxTokens = 800): Promise<string> {
   let response: Response;
-const supportsJsonMode = ['llama-3', 'gpt-', 'claude-', 'gemini', 'google/']
+const supportsJsonMode = ['llama', 'gpt-', 'claude-', 'gemini', 'google/', 'qwen', 'mistral']
   .some(m => model.toLowerCase().includes(m));
   
   const bodyPayload: any = {
@@ -388,35 +388,55 @@ export async function analyzeMango(
 }
 
 /**
- * Parsea la respuesta cruda del modelo a objeto JS.
- * Elimina agresivamente markdown fences (```json ... ```) que algunos modelos
- * incluyen aunque se les pida JSON puro.
+ * Extrae el primer objeto JSON completo usando balance de llaves.
+ * Más robusto que lastIndexOf('}') cuando el modelo alucina texto después del JSON.
  */
+function extractBalancedJson(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (escape)             { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"')         { inString = !inString; continue; }
+    if (inString)           continue;
+
+    if (ch === '{') depth++;
+    if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.substring(start, i + 1); // ← cierre REAL del objeto raíz
+    }
+  }
+  return null;
+}
+
 function parseAIResponse(raw: string): any {
-  // Eliminar markdown fences en CUALQUIER posición del texto
-  // Cubre: texto previo al fence, fence al inicio, fence al final
   const cleaned = raw
-    .replace(/```json\s*/gi, '') // Eliminar ```json (con o sin salto de línea)
-    .replace(/```\s*/gi,     '') // Eliminar ``` restantes
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/gi, '')
     .trim();
 
+  // Intento directo
   try {
     return JSON.parse(cleaned);
-  } catch {
-    // Fallback: extraer el bloque entre primer '{' y último '}'
-    const firstBrace = cleaned.indexOf('{');
-    const lastBrace  = cleaned.lastIndexOf('}');
+  } catch { /* continuar */ }
 
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      const jsonStr = cleaned.substring(firstBrace, lastBrace + 1);
-      try {
-        return JSON.parse(jsonStr);
-      } catch {
-        console.error('[parseAIResponse] JSON extraído inválido:', jsonStr);
-      }
+  // Fallback con extracción balanceada de llaves
+  const jsonStr = extractBalancedJson(cleaned);
+  if (jsonStr) {
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      console.error('[parseAIResponse] JSON extraído inválido:', jsonStr);
     }
-
-    console.error('[parseAIResponse] Respuesta cruda no parseable:', raw);
-    throw new Error('El Sistema devolvió un formato no válido. Por favor, intenta de nuevo.');
   }
+
+  console.error('[parseAIResponse] Respuesta cruda no parseable:', raw);
+  throw new Error('El sistema devolvió un formato no válido. Por favor, intenta de nuevo.');
 }
