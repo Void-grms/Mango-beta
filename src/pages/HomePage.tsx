@@ -4,6 +4,7 @@ import type { User } from '../types/auth';
 import { DISEASES } from '../constants/diseases';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import isotipo from '../assets/isotipo.png';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -87,7 +88,7 @@ export function HomePage({ user, onLogout, onGoToAnalyzer, onGoToLogin }: Props)
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-border px-6 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src="/src/assets/isotipo.png" alt="ARAExport Logo" className="h-8 object-contain" />
+            <img src={isotipo} alt="ARAExport Logo" className="h-8 object-contain" />
             <span className="font-outfit font-bold text-xl tracking-tight text-text-primary hidden sm:block">ARAExport</span>
           </div>
           <div className="flex items-center gap-3 text-sm font-medium">
@@ -342,7 +343,7 @@ export function HomePage({ user, onLogout, onGoToAnalyzer, onGoToLogin }: Props)
         
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <div className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-primary-light rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 mb-8 rotate-6">
-            <img src="/src/assets/isotipo.png" alt="Icon" className="w-10 h-10 object-contain drop-shadow-md invert" />
+            <img src={isotipo} alt="Icon" className="w-10 h-10 object-contain drop-shadow-md invert" />
           </div>
           <h2 className="text-4xl lg:text-6xl font-bold font-outfit mb-6 text-text-primary">Optimiza tu cadena de suministro hoy</h2>
           <p className="text-xl text-text-muted mb-10 max-w-2xl mx-auto">Únete a la vanguardia agroindustrial. Realiza tu primer diagnóstico fitosanitario con IA en menos de 15 segundos.</p>
@@ -361,9 +362,9 @@ export function HomePage({ user, onLogout, onGoToAnalyzer, onGoToLogin }: Props)
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid md:grid-cols-3 gap-12 mb-12">
             <div>
-              <div className="flex items-center gap-3 mb-6">
-                <img src="/src/assets/isotipo.png" alt="ARAExport Logo" className="h-8 object-contain invert" />
-                <span className="font-outfit font-bold text-xl">ARAExport</span>
+              <div className="flex items-center gap-2 mb-4 md:mb-0">
+                <img src={isotipo} alt="ARAExport Logo" className="h-8 object-contain invert" />
+                <span className="font-outfit font-bold text-xl tracking-tight text-white">ARAExport</span>
               </div>
               <p className="text-white/60 text-sm leading-relaxed mb-6">
                 Líderes en la agroexportación de frutas y hortalizas peruanas, garantizando los más altos estándares internacionales mediante tecnología y sostenibilidad.

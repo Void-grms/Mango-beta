@@ -3,6 +3,8 @@ import { DISEASES, ESTADO_GENERAL_CONFIG } from '../constants/diseases';
 import { DiseaseCard } from './DiseaseCard';
 import { formatDate } from '../utils/formatters';
 import { CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
+import isotipo from '../assets/isotipo.png';
+import imagotipo from '../assets/imagotipo.png';
 
 interface Props {
   report:   MangoAnalysisReport;
@@ -19,7 +21,7 @@ export function ReportDisplay({ report, imageUrl }: Props) {
       {/* ── ENCABEZADO ─────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-primary to-primary-light border-b border-border p-6 rounded-t-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <img src="/src/assets/isotipo.png" alt="" className="w-32 h-32 object-contain invert" />
+          <img src={isotipo} alt="" className="w-32 h-32 object-contain invert" />
         </div>
         
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 relative z-10">
@@ -242,7 +244,7 @@ export function ReportDisplay({ report, imageUrl }: Props) {
         {/* ── PIE DEL INFORME ─────────────────────────────────── */}
         <div className="mt-12 border-t border-border pt-8 pb-4 text-xs text-text-muted text-center space-y-2">
           <div className="flex justify-center mb-4">
-             <img src="/src/assets/imagotipo.png" alt="" className="h-8 opacity-40 grayscale" />
+             <img src={imagotipo} alt="" className="h-8 opacity-40 grayscale" />
           </div>
           <p>Generado por el Sistema de Diagnóstico Fitosanitario — ARAExport S.A.C.</p>
           <p>Universidad Privada Antenor Orrego — Facultad de Ingeniería · Trujillo, Perú</p>
