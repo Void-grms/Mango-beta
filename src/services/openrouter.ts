@@ -160,8 +160,8 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
  */
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   const PREVALIDATION_MODELS = [
-    'nvidia/nemotron-nano-12b-v2-vl:free', // visión + free + rápido
-    'google/gemma-3-4b-it:free',           // Fallback
+    'nvidia/nemotron-nano-12b-v2-vl:free',
+    'meta-llama/llama-3.2-11b-vision-instruct:free', // ← fallback con visión real
   ];
 
   const messages = [
@@ -225,11 +225,12 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
   const raw = rawOutput.trim().toLowerCase();
   
   // Analizamos la respuesta
-  const saysTrue = raw.includes('true') || raw.includes('yes');
-  const saysFalse = raw.includes('false') || raw.includes('no');
-
-  // Rechazamos si explícitamente dice false, o si NO dice true (ej. responde "This is a basket of eggs")
-  if ((saysFalse && !saysTrue) || !saysTrue) {
+  const saysTrue  = /\btrue\b/.test(raw) || /\byes\b/.test(raw) || /\bsí\b/.test(raw);
+  const saysFalse = /\bfalse\b/.test(raw) || /\bno\b/.test(raw);
+  
+  // Solo rechazar si el modelo dice explícitamente false/no
+  // y además NO dice true/yes (evita que "no, wait, true" rechace)
+  if (saysFalse && !saysTrue) {
     throw new MangoValidationError();
   }
 }
