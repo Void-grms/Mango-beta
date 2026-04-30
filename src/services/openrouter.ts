@@ -163,8 +163,8 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   // Modelos ordenados por confiabilidad para visión
   const PREVALIDATION_MODELS = [
-  'qwen/qwen-2.5-vl-72b-instruct:free',   // ✅ visión + free, muy confiable
-  'qwen/qwen-2.5-vl-7b-instruct:free',    // ✅ visión + free, más ligero
+  'google/gemma-4-26b-a4b-it:free',                    // ✅ ACTIVO: visión, free, 262K ctx
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', // ✅ ACTIVO: visión, free, 256K ctx
   ];
 
   const messages = [
