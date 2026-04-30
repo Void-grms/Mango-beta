@@ -5,7 +5,7 @@ const USER_KEY = 'mango_beta_user';
 
 export const authService = {
   login(username: string, password: string): User {
-    const user = USERS.find(u => u.username === username.toLowerCase() && u.password === password);
+    const user = USERS.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
     if (!user) {
       throw new Error('Credenciales incorrectas');
     }
