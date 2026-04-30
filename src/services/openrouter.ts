@@ -66,7 +66,8 @@ const MAX_DELAY_MS  = 32_000; // tope de 32 s
  */
 async function fetchOpenRouter(model: string, messages: any[], maxTokens = 800): Promise<string> {
   let response: Response;
-  const supportsJsonMode = ['llama-3', 'gpt-', 'claude-', 'gemini'].some(m => model.toLowerCase().includes(m));
+const supportsJsonMode = ['llama-3', 'gpt-', 'claude-', 'gemini', 'google/']
+  .some(m => model.toLowerCase().includes(m));
   
   const bodyPayload: any = {
     model,
