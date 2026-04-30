@@ -158,40 +158,44 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
  * Fail-open: si el servicio cae (no-2xx, timeout), permite continuar el flujo.
  * Usa fetchOpenRouter directamente — SIN retries/backoff — para fallar rápido.
  */
+console.log(`[PreValidation] RAW RESPONSE de ${model}:`, JSON.stringify(rawOutput));
+console.log(`[PreValidation] saysTrue:`, /\btrue\b/i.test(raw), '| saysFalse:', /\bfalse\b|\bno\b/i.test(raw));
+
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
+  // Modelos ordenados por confiabilidad para visión
   const PREVALIDATION_MODELS = [
-    'nvidia/nemotron-nano-12b-v2-vl:free',
-    'meta-llama/llama-3.2-11b-vision-instruct:free', // ← fallback con visión real
+    'google/gemini-2.0-flash-lite',              // ← más confiable para imágenes
+    'meta-llama/llama-3.2-11b-vision-instruct:free', // fallback con visión real
   ];
 
   const messages = [
     {
       role: 'user',
       content: [
-        { type: 'image_url', image_url: { url: `data:${mediaType};base64,${imageBase64}` } },
+        {
+          type: 'image_url',
+          image_url: { url: `data:${mediaType};base64,${imageBase64}` },
+        },
         { type: 'text', text: PREVALIDATION_PROMPT },
       ],
     },
   ];
-
-  let rawOutput = '';
-  let validationSuccess = false;
 
   for (const model of PREVALIDATION_MODELS) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20_000);
       let response: Response;
-      
+
       try {
         response = await fetch(OPENROUTER_URL, {
-          method:  'POST',
-          signal:  controller.signal,
+          method: 'POST',
+          signal: controller.signal,
           headers: {
             'Authorization': `Bearer ${API_KEY}`,
-            'Content-Type':  'application/json',
-            'HTTP-Referer':  'https://araexport.pe',
-            'X-Title':       'ARAExport Mango Disease Analyzer Beta',
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://araexport.pe',
+            'X-Title': 'ARAExport Mango Disease Analyzer Beta',
           },
           body: JSON.stringify({ model, max_tokens: 100, messages }),
         });
@@ -200,39 +204,44 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
       }
 
       if (!response.ok) {
-        console.warn(`[PreValidation] Modelo ${model} no disponible (HTTP ${response.status})`);
-        continue; // Intentar con el siguiente modelo
+        console.warn(`[PreValidation] ${model} no disponible (HTTP ${response.status})`);
+        continue;
       }
 
       const data = await response.json();
-      rawOutput = data?.choices?.[0]?.message?.content ?? '';
-      console.log(`[PreValidation] Respuesta cruda de ${model}:`, rawOutput);
-      validationSuccess = true;
-      break; // Salimos del loop porque tuvimos éxito
+      const rawOutput = data?.choices?.[0]?.message?.content ?? '';
+      const raw = rawOutput.trim().toLowerCase();
+
+      console.log(`[PreValidation] Respuesta de ${model}:`, raw);
+
+      // ✅ Solo rechazar si el modelo dice explícitamente "false"
+      // Y además NO menciona "mango" en ninguna parte de la respuesta
+      const explicitFalse = /\bfalse\b/.test(raw);
+      const mentionsMango = raw.includes('mango');
+      const explicitTrue  = /\btrue\b/.test(raw) || /\byes\b/.test(raw) || /\bsí\b/.test(raw);
+
+      if (explicitTrue) {
+        return; // ✅ Confirmado como mango, continuar
+      }
+
+      if (explicitFalse && !mentionsMango) {
+        // Solo rechazamos si dice false Y no menciona mango en absoluto
+        throw new MangoValidationError();
+      }
+
+      // Cualquier otra respuesta (prosa, ambigua, etc.) → fail-open
+      console.warn(`[PreValidation] Respuesta ambigua de ${model}, permitiendo continuar.`);
+      return;
+
     } catch (err) {
-      console.warn(`[PreValidation] Error con el modelo ${model}:`, err);
-      continue; // Intentar con el siguiente modelo
+      if (err instanceof MangoValidationError) throw err; // propagar rechazo
+      console.warn(`[PreValidation] Error con ${model}:`, err);
+      // Continuar al siguiente modelo
     }
   }
 
-  // Si TODOS los modelos de pre-validación fallaron (red caída, créditos), hacemos fail-open
-  // (es preferible analizar algo raro que bloquear la app completa si el guardián está caído)
-  if (!validationSuccess) {
-    console.error('[PreValidation] Todos los modelos guardianes fallaron. Omitiendo pre-validación.');
-    return; 
-  }
-
-  const raw = rawOutput.trim().toLowerCase();
-  
-  // Analizamos la respuesta
-  const saysTrue  = /\btrue\b/.test(raw) || /\byes\b/.test(raw) || /\bsí\b/.test(raw);
-  const saysFalse = /\bfalse\b/.test(raw) || /\bno\b/.test(raw);
-  
-  // Solo rechazar si el modelo dice explícitamente false/no
-  // y además NO dice true/yes (evita que "no, wait, true" rechace)
-  if (saysFalse && !saysTrue) {
-    throw new MangoValidationError();
-  }
+  // Todos los modelos fallaron → fail-open (mejor perder un análisis raro que bloquear mangos reales)
+  console.error('[PreValidation] Todos los modelos fallaron. Omitiendo pre-validación.');
 }
 
 /**
