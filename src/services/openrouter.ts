@@ -163,8 +163,8 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   // Modelos ordenados por confiabilidad para visión
   const PREVALIDATION_MODELS = [
-  'meta-llama/llama-3.1-8b-instruct',   // ~$0.055/M tokens, muy rápido
-  'google/gemma-2-9b-it',               // ~$0.07/M tokens, buen backup
+  'meta-llama/llama-3.2-11b-vision-instruct', // ✅ visión, $0.049/M tokens [web:43]
+  'google/gemini-2.0-flash-lite',              // ✅ visión, muy barato backup
   ];
 
   const messages = [
