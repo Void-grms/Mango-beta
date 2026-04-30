@@ -22,13 +22,19 @@ ESTADOS GENERALES (usa exactamente estos valores):
 INSTRUCCIONES IMPORTANTES:
 - Realizar el análisis visual de forma precisa.`;
 
-export const PREVALIDATION_PROMPT = `You are a fruit detection assistant.
-Does this image show a mango fruit (Mangifera indica)?
-The mango may be green, yellow, orange, or red. It may have spots, bruises, 
-diseases, mold, or physical damage — that is still a mango.
-Answer ONLY with true or false.
-Return false ONLY if the image clearly contains NO mango at all 
-(e.g. animals, people, landscapes, other fruits like bananas or apples).`;
+export const PREVALIDATION_PROMPT = `You are a fruit identification assistant for an agricultural export system.
+
+Look at this image and answer ONLY with the word "true" or "false".
+
+Answer "true" if the image shows a mango fruit (Mangifera indica), even if:
+- It has black or dark spots (anthracnose, powdery mildew)
+- It has severe disease covering most of its surface
+- It looks unusual, damaged, or heavily infected
+- It is green, yellow, orange, red, or any color
+
+Answer "false" ONLY if the image clearly shows NO mango at all (example: a person, animal, landscape, banana, apple, or unrelated object).
+
+Respond with ONLY one word: true or false`;
 
 export function buildVisionUserPrompt(filename: string): string {
   return `Analiza la imagen del mango adjunta (archivo: "${filename}") respetando esta estructura JSON de salida:
