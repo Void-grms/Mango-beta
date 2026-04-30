@@ -90,3 +90,29 @@ export const ESTADO_GENERAL_CONFIG = {
   comprometido: { label: 'Comprometido', classes: 'bg-yellow-50 border border-yellow-200 text-yellow-700', icon: '⚠️' },
   critico:      { label: 'Crítico',      classes: 'bg-red-50    border border-red-200    text-red-700',    icon: '🔴' },
 };
+
+// ─── Getters seguros con fallback ────────────────────────────────────────────
+
+const VALID_ESTADOS = Object.keys(ESTADO_GENERAL_CONFIG) as (keyof typeof ESTADO_GENERAL_CONFIG)[];
+const VALID_CODES   = Object.keys(DISEASES) as DiseaseCode[];
+const VALID_SEVERITY = Object.keys(SEVERITY_CONFIG) as SeverityLevel[];
+
+/** Devuelve la config de estado_general, nunca undefined. */
+export function getEstadoConfig(estado: string) {
+  const key = VALID_ESTADOS.find(k => k === estado)
+    ?? VALID_ESTADOS.find(k => estado?.toLowerCase().includes(k))
+    ?? 'optimo';
+  return ESTADO_GENERAL_CONFIG[key];
+}
+
+/** Devuelve la config de enfermedad, nunca undefined. */
+export function getDiseaseInfo(codigo: string): DiseaseInfo {
+  const key = VALID_CODES.find(k => k === codigo) ?? 'otras_lesiones';
+  return DISEASES[key];
+}
+
+/** Devuelve la config de severidad, nunca undefined. */
+export function getSeverityInfo(severidad: string): SeverityInfo {
+  const key = VALID_SEVERITY.find(k => k === severidad) ?? 'sano';
+  return SEVERITY_CONFIG[key];
+}

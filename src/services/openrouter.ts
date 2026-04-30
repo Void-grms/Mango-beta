@@ -357,22 +357,53 @@ export async function analyzeMango(
     throw new Error('Fallaron todos los modelos expertos para generar recomendaciones: ' + (lastExpertError?.message || 'Error desconocido'));
   }
 
+  // ─── Helpers de normalización ─────────────────────────────────────────────────
+  const VALID_CODIGOS   = ['sano','antracnosis','oidio','pudricion_pedunculo','otras_lesiones'];
+  const VALID_SEVERIDAD = ['sano','leve','moderado','severo'];
+  const VALID_ESTADOS   = ['optimo','acceptable','comprometido','critico'];
+
+  function normalizeCode(val: string | undefined): string {
+    if (!val) return 'otras_lesiones';
+    const v = val.toLowerCase().trim();
+    return VALID_CODIGOS.find(c => c === v) ?? 'otras_lesiones';
+  }
+
+  function normalizeSeverity(val: string | undefined): string {
+    if (!val) return 'sano';
+    const v = val.toLowerCase().trim();
+    // "leve" y variantes
+    if (v.includes('leve') || v.includes('mild') || v.includes('light')) return 'leve';
+    if (v.includes('moder'))  return 'moderado';
+    if (v.includes('sever') || v.includes('grave') || v.includes('criti')) return 'severo';
+    return VALID_SEVERIDAD.find(s => s === v) ?? 'sano';
+  }
+
+  function normalizeEstado(val: string | undefined): string {
+    if (!val) return 'optimo';
+    const v = val.toLowerCase().trim();
+    if (v.includes('acept') || v.includes('accept')) return 'acceptable';
+    if (v.includes('comprom'))                        return 'comprometido';
+    if (v.includes('criti'))                          return 'critico';
+    if (v.includes('optim') || v.includes('sano'))    return 'optimo';
+    return VALID_ESTADOS.find(s => s === v) ?? 'optimo';
+  }
+
   // ============== FASE 3: COMBINAR ==============
   const report: MangoAnalysisReport = {
     diagnostico_principal: {
-      codigo: visionResult.diag?.codigo || '',
-      nombre: visionResult.diag?.nombre || '',
+      codigo:           normalizeCode(visionResult.diag?.codigo) as any,
+      nombre:           visionResult.diag?.nombre || '',
       nombre_cientifico: visionResult.diag?.sci || null,
-      confianza: visionResult.diag?.conf || 0,
-      severidad: visionResult.diag?.severidad || 'sano',
-      porcentaje_area: visionResult.diag?.pct || 0,
+      confianza:        visionResult.diag?.conf || 0,
+      severidad:        normalizeSeverity(visionResult.diag?.severidad) as any,
+      porcentaje_area:  visionResult.diag?.pct || 0,
       descripcion_visual: visionResult.diag?.descripcion_visual || ''
     },
     diagnosticos_secundarios: visionResult.alt || [],
-    estado_general: visionResult.estado_general || 'optimo',
+    estado_general:              normalizeEstado(visionResult.estado_general) as any,
     porcentaje_area_total_afectada: visionResult.porcentaje_area_total_afectada || 0,
-    descripcion_general: visionResult.descripcion_general || '',
-    advertencias: visionResult.advertencias || [],
+    descripcion_general:         visionResult.descripcion_general || '',
+    advertencias:                visionResult.advertencias || [],
     apto_exportacion: expertResult.apto_exportacion ?? false,
     observaciones_adicionales: expertResult.observaciones_adicionales || [],
     recomendaciones: expertResult.recs || [],
