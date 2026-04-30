@@ -158,8 +158,7 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
  * Fail-open: si el servicio cae (no-2xx, timeout), permite continuar el flujo.
  * Usa fetchOpenRouter directamente — SIN retries/backoff — para fallar rápido.
  */
-console.log(`[PreValidation] RAW RESPONSE de ${model}:`, JSON.stringify(rawOutput));
-console.log(`[PreValidation] saysTrue:`, /\btrue\b/i.test(raw), '| saysFalse:', /\bfalse\b|\bno\b/i.test(raw));
+
 
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   // Modelos ordenados por confiabilidad para visión
@@ -213,6 +212,8 @@ async function cheapPreValidation(imageBase64: string, mediaType: string): Promi
       const raw = rawOutput.trim().toLowerCase();
 
       console.log(`[PreValidation] Respuesta de ${model}:`, raw);
+      console.log(`[PreValidation] RAW RESPONSE de ${model}:`, JSON.stringify(rawOutput));
+      console.log(`[PreValidation] saysTrue:`, /\btrue\b/i.test(raw), '| saysFalse:', /\bfalse\b|\bno\b/i.test(raw));
 
       // ✅ Solo rechazar si el modelo dice explícitamente "false"
       // Y además NO menciona "mango" en ninguna parte de la respuesta
