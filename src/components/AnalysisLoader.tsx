@@ -22,20 +22,28 @@ export function AnalysisLoader() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-8 text-center">
-      <Loader2 className="w-12 h-12 text-green-600 animate-spin mb-4" />
-      <p className="text-lg font-medium text-gray-700 mb-2">Analizando imagen...</p>
-      <p className="text-sm text-gray-500 min-h-[20px] transition-all">{MESSAGES[msgIndex]}</p>
-      {/* Barra de progreso indeterminada */}
-      <div className="mt-6 w-64 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-        <div className="h-full bg-green-500 rounded-full"
-             style={{ animation: 'progress 2s ease-in-out infinite' }} />
+    <div className="flex flex-col items-center justify-center py-16 px-8 text-center animate-fade-in">
+      <div className="relative mb-8">
+        <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full" />
+        <div className="w-20 h-20 bg-white border border-border rounded-2xl flex items-center justify-center relative card-shadow">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        </div>
       </div>
+      
+      <h3 className="text-xl font-bold text-text-primary font-outfit mb-3">Analizando imagen</h3>
+      <p className="text-sm text-text-muted min-h-[20px] transition-all duration-300 font-medium">
+        {MESSAGES[msgIndex]}
+      </p>
+      
+      {/* Barra de progreso indeterminada */}
+      <div className="mt-8 w-64 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-primary to-primary-light rounded-full w-1/3 animate-[progress_1.5s_ease-in-out_infinite]" />
+      </div>
+      
       <style>{`
         @keyframes progress {
-          0%   { width: 0%;   margin-left: 0%; }
-          50%  { width: 60%;  margin-left: 20%; }
-          100% { width: 0%;   margin-left: 100%; }
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(400%); }
         }
       `}</style>
     </div>

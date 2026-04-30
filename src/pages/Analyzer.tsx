@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { FileDown, RotateCcw, Leaf, AlertCircle } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { FileDown, RotateCcw, Leaf, AlertCircle, ArrowLeft } from 'lucide-react';
 import type { AppState, AnalysisStatus } from '../types/analysis';
 import { ImageUploader } from '../components/ImageUploader';
 import { AnalysisLoader } from '../components/AnalysisLoader';
@@ -8,6 +8,7 @@ import { analyzeMango, OpenRouterError } from '../services/openrouter';
 import { generatePDF } from '../services/reportGenerator';
 import { processImageFile } from '../utils/imageUtils';
 import { MangoValidationError } from '../utils/errors';
+import gsap from 'gsap';
 
 const INITIAL_STATE: AppState = {
   screen:         'ANALYZER',
@@ -20,10 +21,24 @@ const INITIAL_STATE: AppState = {
   errorMessage:   null,
 };
 
-export function Analyzer() {
+interface Props {
+  onBack: () => void;
+}
+
+export function Analyzer({ onBack }: Props) {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [isNotMangoError, setIsNotMangoError] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mainRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.from('.analyzer-header', { opacity: 0, y: -20, duration: 0.5, ease: 'power3.out' });
+      gsap.from('.analyzer-body', { opacity: 0, y: 30, duration: 0.6, delay: 0.15, ease: 'power3.out' });
+    }, mainRef);
+    return () => ctx.revert();
+  }, []);
 
   // ── Seleccionar imagen ──────────────────────────────────────
   const handleFileSelected = useCallback(async (file: File) => {
@@ -123,29 +138,39 @@ export function Analyzer() {
   // ── RENDER: pantalla REPORT ───────────────────────────────────
   if (state.screen === 'REPORT' && state.report && state.previewUrl) {
     return (
-      <div className="min-h-screen bg-gray-100 py-8 px-4">
+      <div className="min-h-screen bg-surface-alt py-8 px-4 font-inter text-text-primary">
         {/* Barra de acciones */}
-        <div className="max-w-3xl mx-auto mb-4 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <button
-            onClick={handleNewAnalysis}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition text-sm font-medium shadow-sm"
+            onClick={onBack}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-text-muted hover:text-primary hover:bg-primary-50 transition-colors text-sm font-medium self-start sm:self-auto"
           >
-            <RotateCcw className="w-4 h-4" />
-            Nuevo análisis
+            <ArrowLeft className="w-4 h-4" />
+            Volver al inicio
           </button>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={handleNewAnalysis}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white border border-border text-text-primary hover:bg-surface-alt transition-colors text-sm font-medium"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Nuevo
+            </button>
 
-          <button
-            onClick={handleDownloadPDF}
-            disabled={isDownloadingPDF}
-            className="flex items-center gap-2 px-5 py-2 rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-60 transition text-sm font-semibold shadow"
-          >
-            <FileDown className="w-4 h-4" />
-            {isDownloadingPDF ? 'Generando PDF...' : 'Descargar PDF'}
-          </button>
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloadingPDF}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white disabled:opacity-60 transition-colors text-sm font-semibold shadow-md shadow-primary/15"
+            >
+              <FileDown className="w-4 h-4" />
+              {isDownloadingPDF ? 'Generando...' : 'Descargar PDF'}
+            </button>
+          </div>
         </div>
 
         {/* Informe */}
-        <div className="max-w-3xl mx-auto shadow-xl rounded-2xl overflow-hidden">
+        <div className="max-w-3xl mx-auto">
           <ReportDisplay report={state.report} imageUrl={state.previewUrl} />
         </div>
       </div>
@@ -154,37 +179,49 @@ export function Analyzer() {
 
   // ── RENDER: pantalla ANALYZER ─────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div ref={mainRef} className="min-h-screen bg-surface-alt flex flex-col font-inter">
       {/* Header */}
-      <header className="bg-green-700 text-white py-5 px-6 shadow-md">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <Leaf className="w-8 h-8 text-green-300" />
-          <div>
-            <h1 className="text-xl font-bold leading-tight">
-              Diagnóstico de Enfermedades de Mango
-            </h1>
-            <p className="text-green-300 text-sm">ARAExport S.A.C. — Sistema Beta · Análisis con Sistema</p>
+      <header className="analyzer-header sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-border px-6 py-4">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md shadow-primary/20">
+              <Leaf className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold font-outfit text-text-primary leading-tight">
+                Diagnóstico de Mango
+              </h1>
+              <p className="text-text-muted text-xs">Análisis con IA</p>
+            </div>
           </div>
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-text-muted hover:text-primary text-sm font-medium transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Volver al inicio</span>
+          </button>
         </div>
       </header>
 
       {/* Contenido */}
-      <main className="max-w-2xl mx-auto py-10 px-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <main className="analyzer-body flex-1 w-full max-w-2xl mx-auto py-10 px-4 flex flex-col justify-center">
+        <div className="bg-white rounded-2xl overflow-hidden card-shadow-lg border border-border">
 
           {/* Cuerpo: uploader o loader */}
-          <div className="p-6">
+          <div className="p-8">
             {isAnalyzing ? (
               <AnalysisLoader />
             ) : (
               <>
-                <h2 className="text-base font-semibold text-gray-700 mb-1">
-                  Sube una fotografía del mango
-                </h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  El Sistema analizará la imagen e identificará posibles enfermedades,
-                  nivel de severidad y aptitud para exportación.
-                </p>
+                <div className="text-center mb-6">
+                  <h2 className="text-xl font-bold font-outfit text-text-primary mb-2">
+                    Subir fotografía del fruto
+                  </h2>
+                  <p className="text-sm text-text-muted max-w-md mx-auto">
+                    El sistema procesará la imagen con inteligencia artificial para identificar patologías y evaluar la aptitud de exportación.
+                  </p>
+                </div>
                 <ImageUploader
                   onFileSelected={handleFileSelected}
                   previewUrl={state.previewUrl}
@@ -226,21 +263,21 @@ export function Analyzer() {
 
           {/* Botón analizar */}
           {!isAnalyzing && (
-            <div className="px-6 pb-6">
+            <div className="px-8 pb-8 pt-2">
               <button
                 onClick={handleAnalyze}
                 disabled={!canAnalyze}
-                className="w-full py-3 rounded-xl font-semibold text-white text-base
-                  bg-green-700 hover:bg-green-800 disabled:bg-gray-300 disabled:cursor-not-allowed
-                  transition-colors shadow-sm"
+                className="w-full py-4 rounded-xl font-bold text-white text-base
+                  bg-primary hover:bg-primary-light disabled:bg-gray-100 disabled:text-text-muted disabled:cursor-not-allowed
+                  transition-all shadow-md shadow-primary/15 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:shadow-none"
               >
                 {state.selectedFile && !state.imageBase64
                   ? 'Procesando imagen...'
-                  : 'Analizar en el Sistema'
+                  : 'Analizar con Inteligencia Artificial'
                 }
               </button>
               {!state.selectedFile && (
-                <p className="text-center text-xs text-gray-400 mt-2">
+                <p className="text-center text-xs text-text-muted mt-3">
                   Selecciona una imagen para habilitar el análisis
                 </p>
               )}
@@ -249,7 +286,7 @@ export function Analyzer() {
         </div>
 
         {/* Nota informativa */}
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-text-muted mt-8">
           Sistema beta — El análisis puede tardar entre 5 y 15 segundos dependiendo de la conexión.<br />
           Los resultados son orientativos. Confirmar con agrónomo especialista.
         </p>
