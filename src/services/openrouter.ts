@@ -48,7 +48,7 @@ const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, m
  * Delay mínimo entre llamadas sucesivas a la API para reducir la probabilidad
  * de recibir un 429 antes de que se produzca.
  */
-const INTER_CALL_DELAY_MS = 1_500; // 1.5 s
+const INTER_CALL_DELAY_MS = 2_500; // 1.5 s
 
 /**
  * Configuración del backoff exponencial.
@@ -163,8 +163,8 @@ async function callOpenRouter(model: string, messages: any[], maxTokens = 800): 
 async function cheapPreValidation(imageBase64: string, mediaType: string): Promise<void> {
   // Modelos ordenados por confiabilidad para visión
   const PREVALIDATION_MODELS = [
-  'google/gemma-4-26b-a4b-it:free',                    // ✅ ACTIVO: visión, free, 262K ctx
-  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free', // ✅ ACTIVO: visión, free, 256K ctx
+  'meta-llama/llama-3.1-8b-instruct',   // ~$0.055/M tokens, muy rápido
+  'google/gemma-2-9b-it',               // ~$0.07/M tokens, buen backup
   ];
 
   const messages = [
@@ -267,7 +267,7 @@ export async function analyzeMango(
   await cheapPreValidation(imageBase64, mediaType);
 
   // ============== FASE 1: VISIÓN ==============
-  const visionModel = MODEL || 'nvidia/nemotron-nano-12b-v2-vl:free';
+  const visionModel = MODEL || 'nvidia/nemotron-nano-12b-v2-vl';
   const visionMessages = [
     {
       role: 'system',
@@ -303,10 +303,10 @@ export async function analyzeMango(
 
   // ============== FASE 2: EXPERTO (FALLBACKS) ==============
   const defaultExpertModels = [
-    'openai/gpt-oss-120b:free',               // 131K ctx, MoE, structured output
-    'nvidia/nemotron-3-super-120b-a12b:free', // 262K ctx, muy capaz
-    'z-ai/glm-4.5-air:free',                  // 131K ctx, buen fallback
-    'openrouter/free'                         // comodín final de la plataforma
+  'meta-llama/llama-3.3-70b-instruct',  // ~$0.12/M tokens, muy capaz
+  'google/gemma-2-27b-it',              // ~$0.27/M tokens
+  'qwen/qwen-2.5-72b-instruct',         // ~$0.35/M tokens
+  'mistralai/mistral-small-3.2-24b-instruct' // buen fallback final
   ];
   const expertModels = EXPERT_MODELS_ENV 
     ? EXPERT_MODELS_ENV.split(',').map(m => m.trim())
