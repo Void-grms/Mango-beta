@@ -36,7 +36,7 @@ export function ReportDisplay({ report, imageUrl }: Props) {
           <div className="text-left md:text-right text-xs text-white/60 space-y-1.5 bg-white/10 p-3 rounded-xl backdrop-blur-sm">
             <p className="font-mono">ID: {report.id_sesion.slice(0, 8).toUpperCase()}</p>
             <p>{formatDate(report.fecha_analisis)}</p>
-            <p className="text-white/80">Análisis Generado por IA</p>
+            <p className="text-white/80">Análisis Generado por el sistema</p>
           </div>
         </div>
         
@@ -249,7 +249,7 @@ export function ReportDisplay({ report, imageUrl }: Props) {
           <p>Generado por el Sistema de Diagnóstico Fitosanitario — ARAExport S.A.C.</p>
           <p>Universidad Privada Antenor Orrego — Facultad de Ingeniería · Trujillo, Perú</p>
           <p className="text-amber-600 font-medium max-w-lg mx-auto bg-amber-50 p-2 rounded border border-amber-100 mt-2">
-            ⚠️ Este informe es emitido por Inteligencia Artificial y es de carácter orientativo. Confirmar con un agrónomo especialista antes de tomar decisiones sobre el lote.
+            ⚠️ Este informe es emitido por vision computacional y es de carácter orientativo. Confirmar con un agrónomo especialista antes de tomar decisiones sobre el lote.
           </p>
           <div className="flex justify-center gap-4 mt-4 opacity-50">
             <span>Sesión: {report.id_sesion.slice(0,12)}</span>

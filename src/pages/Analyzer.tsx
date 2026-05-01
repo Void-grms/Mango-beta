@@ -191,7 +191,7 @@ export function Analyzer({ onBack }: Props) {
               <h1 className="text-lg font-bold font-outfit text-text-primary leading-tight">
                 Diagnóstico de Mango
               </h1>
-              <p className="text-text-muted text-xs">Análisis con IA</p>
+              <p className="text-text-muted text-xs">Análisis con Visión Computacional</p>
             </div>
           </div>
           <button

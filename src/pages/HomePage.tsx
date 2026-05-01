@@ -346,12 +346,12 @@ export function HomePage({ user, onLogout, onGoToAnalyzer, onGoToLogin }: Props)
             <img src={isotipo} alt="Icon" className="w-10 h-10 object-contain drop-shadow-md invert" />
           </div>
           <h2 className="text-4xl lg:text-6xl font-bold font-outfit mb-6 text-text-primary">Optimiza tu cadena de suministro hoy</h2>
-          <p className="text-xl text-text-muted mb-10 max-w-2xl mx-auto">Únete a la vanguardia agroindustrial. Realiza tu primer diagnóstico fitosanitario con IA en menos de 15 segundos.</p>
+          <p className="text-xl text-text-muted mb-10 max-w-2xl mx-auto">Únete a la vanguardia agroindustrial. Realiza tu primer diagnóstico fitosanitario con visión computacional en menos de 15 segundos.</p>
           <button
             onClick={onGoToAnalyzer}
             className="px-10 py-5 rounded-2xl bg-primary hover:bg-primary-light text-white font-bold text-xl inline-flex items-center gap-3 transition-all hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-1"
           >
-            Ir al Analizador de IA
+            Ir al Analizador
             <ArrowRight className="w-6 h-6" />
           </button>
         </div>
@@ -374,7 +374,6 @@ export function HomePage({ user, onLogout, onGoToAnalyzer, onGoToLogin }: Props)
             <div>
               <h4 className="font-bold mb-6 font-outfit">Sistema Beta</h4>
               <ul className="space-y-3 text-sm text-white/60">
-                <li><a href="#" className="hover:text-white transition-colors">Diagnóstico IA</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Catálogo de Patologías</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Reportes Históricos</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Documentación de API</a></li>
